@@ -369,7 +369,7 @@ $(function () {
         
      });       
      
-     asyncTest("'submit' method: success", function () {
+     asyncTest("'submit' method: success (multiple elems)", function () {
         var ev1 = 'ev1',
             e1v = 'e1v',
             pk = 123,
@@ -402,6 +402,57 @@ $(function () {
         });
         
      }); 
+     
+     asyncTest("'submit' method: success (single elem)", function () {
+        expect(5);
+        
+        var ev1 = 'ev1',
+            pk = 123,
+            e = $('<a href="#" class="new" data-type="text" data-pk="'+pk+'" data-url="submit-single" data-name="text">'+ev1+'</a>').appendTo(fx).editable({
+               success: function(data) {
+                   equal(data, 'response-body', 'response body ok');
+               }             
+            });
+
+        $.mockjax({
+            url: 'submit-single',
+            response: function(settings) {
+                equal(settings.data.name, 'text', 'name ok');
+                equal(settings.data.pk, pk, 'pk ok');
+                equal(settings.data.value, ev1, 'value ok');
+                equal(settings.data.a, 1, 'extra data ok');
+                this.responseText = 'response-body';  
+            }
+        });            
+            
+       $(fx).find('.new').editable('submit', {
+           data: {a: 1}           
+       });
+       
+       setTimeout(function() {
+           e.remove();
+           start();
+       }, timeout);
+        
+     });  
+     
+     asyncTest("'submit' method: error (single elem)", function () {
+        expect(1);
+        
+        var e = $('<a href="#" class="new" data-type="text" data-pk="123" data-url="error.php" data-name="text">text</a>').appendTo(fx).editable();
+
+       $(fx).find('.new').editable('submit', {
+           error: function() {
+               equal(this[0], e[0], 'error called in correct scope');
+           }
+       });
+       
+       setTimeout(function() {
+           e.remove();
+           start();
+       }, timeout);
+        
+     });           
      
      
      test("setValue method", function () {
@@ -446,11 +497,80 @@ $(function () {
         ok(!e.hasClass('editable-click'), 'editable-click class removed');
         
         equal(e.text(), '', 'emptytext removed');
-        
-        
+             
         
         e.click();
                 
-     });                                 
+     });
+
+
+    asyncTest("'validate' that change value", function () {
+        expect(3);
+
+        var e = $('<a href="#" data-type="text" data-pk="1" data-url="validate-change-ok" data-name="text">abc</a>').appendTo(fx).editable({
+                validate: function(value) {
+                    return {newValue: 'newval'};
+                }
+            });
+
+
+        $.mockjax({
+            url: 'validate-change-ok',
+            response: function(settings) {
+                equal(settings.data.value, 'newval', 'validate-change-ok');
+                this.responseText = '';
+            }
+        });
+       
+        //change value to pass client side validation
+        e.click();
+        var p = tip(e);
+        p.find('input[type=text]').val('cde');
+        p.find('button[type=submit]').click(); 
+       
+        setTimeout(function() {
+             equal(e.data('editable').value, 'newval', 'new value saved');
+             ok(!p.is(':visible'), 'popover closed');
+
+             e.remove();    
+             start();  
+        }, timeout);                 
+       
+     });                                         
   
+      asyncTest("'validate' that change value and shows message", function () {
+        expect(3);
+
+        var e = $('<a href="#" data-type="text" data-url="validate-change-error" data-name="text">abc</a>').appendTo(fx).editable({
+                validate: function(value) {
+                    return {newValue: 'newval', msg: 'error!'};
+                }
+            });
+
+
+        $.mockjax({
+            url: 'validate-change-error',
+            response: function(settings) {
+                ok(true, 'should not call');
+                this.responseText = '';
+            }
+        });
+       
+        //change value to pass client side validation
+        e.click();
+        var p = tip(e);
+        p.find('input[type=text]').val('cde');
+        p.find('button[type=submit]').click(); 
+       
+        setTimeout(function() {
+            ok(p.is(':visible'), 'popover visible');
+            equal(p.find('input[type=text]').val(), 'newval', 'new value shown in input');
+            equal(p.find('.editable-error-block').text(), 'error!', 'error msg shown');  
+
+            e.remove();    
+            start();  
+        }, timeout);                 
+       
+     }); 
+
 });            

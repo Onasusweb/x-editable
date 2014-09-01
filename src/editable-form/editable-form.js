@@ -181,7 +181,7 @@ Editableform is linked with one of input types, e.g. 'text', 'select' etc.
             } else {
                 //convert newline to <br> for more pretty error display
                 if(msg) {
-                    lines = msg.split("\n");
+                    lines = (''+msg).split('\n');
                     for (var i = 0; i < lines.length; i++) {
                         lines[i] = $('<div>').text(lines[i]).html();
                     }
@@ -196,11 +196,21 @@ Editableform is linked with one of input types, e.g. 'text', 'select' etc.
             e.stopPropagation();
             e.preventDefault();
             
-            var error,
-                newValue = this.input.input2value(); //get new value from input
+            //get new value from input
+            var newValue = this.input.input2value(); 
 
-            //validation
-            if (error = this.validate(newValue)) {
+            //validation: if validate returns string or truthy value - means error
+            //if returns object like {newValue: '...'} => submitted value is reassigned to it
+            var error = this.validate(newValue);
+            if ($.type(error) === 'object' && error.newValue !== undefined) {
+                newValue = error.newValue;
+                this.input.value2input(newValue);
+                if(typeof error.msg === 'string') {
+                    this.error(error.msg);
+                    this.showForm();
+                    return;
+                }
+            } else if (error) {
                 this.error(error);
                 this.showForm();
                 return;
@@ -499,6 +509,8 @@ Editableform is linked with one of input types, e.g. 'text', 'select' etc.
         send: 'auto', 
         /**
         Function for client-side validation. If returns string - means validation not passed and string showed as error.
+        Since 1.5.1 you can modify submitted value by returning object from `validate`: 
+        `{newValue: '...'}` or `{newValue: '...', msg: '...'}`
 
         @property validate 
         @type function
